@@ -18,20 +18,26 @@ fn go_to_obstacle(grid: &Vec<Vec<bool>>, visited: &mut Vec<Vec<bool>>, pos: [i32
     [x - xdir, y - ydir, -ydir, xdir]
 }
 
+fn run_path(grid: &Vec<Vec<bool>>, visited: &mut Vec<Vec<bool>>, start: (i32, i32)) -> bool {
+    let mut seen = HashSet::<[i32; 4]>::new();
+
+    let mut pos = [start.0, start.1, 0, -1];
+    while pos[0] >= 0 {
+        pos = go_to_obstacle(&grid, visited, pos);
+        if !seen.insert(pos) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 fn part1(grid: &Vec<Vec<bool>>, start: (i32, i32)) {
     let w = grid[0].len();
     let h = grid.len();
     let mut visited = vec![vec![false; w]; h];
 
-    let mut seen = HashSet::<[i32; 4]>::new();
-
-    let mut pos = [start.0, start.1, 0, -1];
-    while pos[0] >= 0 {
-        pos = go_to_obstacle(&grid, &mut visited, pos);
-        if !seen.insert(pos) {
-            break;
-        }
-    }
+    run_path(&grid, &mut visited, start);
 
     println!("Visited map");
     visited.iter().for_each(|row| {
@@ -48,7 +54,31 @@ fn part1(grid: &Vec<Vec<bool>>, start: (i32, i32)) {
 }
 
 fn part2(grid: &Vec<Vec<bool>>, start: (i32, i32)) {
+    let mut grid = grid.clone();
+    let w = grid[0].len();
+    let h = grid.len();
+    let mut visited = vec![vec![false; w]; h];
 
+    run_path(&grid, &mut visited, start);
+
+    let mut obstacle_visited = vec![vec![false; w]; h];
+    let mut count = 0;
+    visited.iter().enumerate()
+        .for_each(|(y, row)| {
+            row.iter().enumerate()
+                .for_each(|(x, val)| {
+                    if *val {
+                        grid[y][x] = false;
+                        if run_path(&grid, &mut obstacle_visited, start) {
+                            count += 1;
+                        }
+                        grid[y][x] = true;
+                        obstacle_visited.iter_mut().for_each(|x| x.fill(false));
+                    }
+                })
+        });
+
+    println!("Total loops {}", count);
 }
 
 fn main() {

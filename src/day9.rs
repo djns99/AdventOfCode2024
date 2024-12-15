@@ -41,7 +41,26 @@ fn part1(mut diskmap: Vec<usize>) {
 }
 
 
-fn part2(diskmap: Vec<usize>) {
+fn part2(mut diskmap: Vec<usize>) {
+    let mut diskoff: Vec<usize> = diskmap.iter().scan(0 as usize, |state, &x| {*state += x; Some(*state - x)}).collect();
+    println!("Scan {:?}", diskoff);
+    let num_files = (diskmap.len() + 1) / 2;
+    let mut check_sum = 0;
+    'next_file: for fileid in (0..num_files).rev() {
+        let segment_size = diskmap[fileid*2];
+        for mv in 0..fileid {
+            let space_offset = mv*2+1;
+            if segment_size <= diskmap[space_offset] {
+                println!("Moving segment {} of size {} to gap {} offset {}", fileid, segment_size, mv, diskoff[space_offset]);
+                check_sum += fileid * sum_a_to_b(diskoff[space_offset], diskoff[space_offset] + segment_size - 1);
+                diskmap[space_offset] -= segment_size;
+                diskoff[space_offset] += segment_size;
+                continue 'next_file;
+            }
+        }
+        check_sum += fileid * sum_a_to_b(diskoff[fileid*2], diskoff[fileid*2] + segment_size - 1);
+    }
+    println!("Checksum {}", check_sum);
 }
 
 fn main() {

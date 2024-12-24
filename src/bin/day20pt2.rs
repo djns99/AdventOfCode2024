@@ -1,16 +1,17 @@
 use std::collections::{BinaryHeap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::{io, mem};
 use std::mem::swap;
-use crate::Solution::{Count, Score};
+use crate::Solution::{Costs, Count, Score};
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-struct Position {
-    pos: usize,
-    skip_pos: Option<(usize, usize)>,
-}
+// #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+// struct Position {
+//     pos: usize,
+//     skip_pos: Option<(usize, usize)>,
+// }
 
 enum Solution {
     Score(i64),
+    Costs(HashMap<usize, i64>),
     Count(i64),
 }
 
@@ -69,7 +70,7 @@ fn make_grid_graph(grid: &Vec<Vec<char>>, cheatsize: isize) -> HashMap<usize, Gr
     }).flatten().collect()
 }
 
-fn solve(grid: &Vec<Vec<char>>, start: (usize, usize), end: (usize, usize), cutoff: Option<i64>) -> Solution {
+fn solve(grid: &Vec<Vec<char>>, start: (usize, usize), end: (usize, usize), cutoff: Option<i64>, finish_cache: Option<HashMap<usize, i64>>) -> Solution {
     let cheatsize = if cutoff.is_some() { 20_isize } else { 1_isize };
     let graph = make_grid_graph(&grid, cheatsize);
     println!("Built graph cheatsize {}", cheatsize);
@@ -89,36 +90,43 @@ fn solve(grid: &Vec<Vec<char>>, start: (usize, usize), end: (usize, usize), cuto
 
     let mut numsols = 0;
 
-    let skip_pos = if cutoff.is_some() { None } else { Some((start, start)) };
-    heap.push((0 as i64, Position { pos: start, skip_pos }));
+    heap.push((0 as i64, start));
 
     while !heap.is_empty() {
         let (score, pos) = heap.pop().unwrap();
         if cutoff.is_some() && cutoff.unwrap() > score {
+            println!("Reached cutoff");
             break;
         }
 
-        // println!("Processing {} {:?}", score, pos);
-        if pos.pos == end {
+        println!("Processing {} {:?}", score, pos);
+        if pos == end {
             println!("Min score {}", score);
-            match cutoff {
-                Some(_) => { numsols += 1; }
-                None => { return Score(score); }
-            }
+            assert!(cutoff.is_none());
+            return Score(score);
+            // match cutoff {
+            //     Some(_) => { numsols += 1; }
+            //     None => { return Score(score); }
+            // }
         }
-        let nocheat = Position { pos: pos.pos, skip_pos: None };
-        if seen.contains_key(&nocheat) || *seen.entry(pos).or_insert(score) < score {
+        if *seen.entry(pos).or_insert(score) != score {
             continue;
         }
 
-        let neighbours = &graph.get(&pos.pos).unwrap().neighbours;
+        let neighbours = &graph.get(&pos).unwrap().neighbours;
         // println!("Neighbours {}", neighbours.len());
         for &(newpos, cost) in neighbours {
-            if cost > 1 && pos.skip_pos.is_some() { continue; } // Already cheated
-            let skip_pos = if cost > 1 { Some((pos.pos, newpos)) } else { pos.skip_pos };
-            let pos = Position { pos: newpos, skip_pos };
-            if seen.contains_key(&pos) { continue; }
-            heap.push((score - cost, pos));
+            if cost > 1 {
+                assert!(finish_cache.is_some());
+                let finalcost = score - cost + finish_cache.as_ref().unwrap().get(&newpos).unwrap();
+                if finalcost >= cutoff.unwrap() {
+                    println!("Found valid cheat {}", finalcost);
+                    numsols += 1;
+                }
+                continue;
+            }
+            if seen.contains_key(&newpos) { continue; }
+            heap.push((score - 1, newpos));
         }
         // let mut advance_dir = |newdir, newscore| {
         //     let Some(newpos) = advance(pos.pos, newdir) else { return; };
@@ -135,7 +143,11 @@ fn solve(grid: &Vec<Vec<char>>, start: (usize, usize), end: (usize, usize), cuto
         // advance_dir((1, 0), 1);
         // advance_dir((-1, 0), 1);
     }
-    Count(numsols)
+    if end as isize >= w * h {
+        Costs(seen)
+    } else {
+        Count(numsols)
+    }
 }
 
 fn part1(grid: Vec<Vec<char>>, start: (usize, usize), end: (usize, usize)) {}
@@ -143,8 +155,9 @@ fn part1(grid: Vec<Vec<char>>, start: (usize, usize), end: (usize, usize)) {}
 
 fn part2(grid: Vec<Vec<char>>, start: (usize, usize), end: (usize, usize)) {
     let minsave = 100;
-    let Score(bestscore) = solve(&grid, start, end, None) else { panic!() };
-    let Count(numskips) = solve(&grid, start, end, Some(bestscore + minsave)) else { panic!() };
+    let Score(bestscore) = solve(&grid, start, end, None, None) else { panic!() };
+    let Costs(costs) = solve(&grid, end, (grid[0].len(), grid.len()), None, None) else { panic!() };
+    let Count(numskips) = solve(&grid, start, end, Some(bestscore + minsave), Some(costs)) else { panic!() };
     println!("Number of improvements {}", numskips);
 }
 

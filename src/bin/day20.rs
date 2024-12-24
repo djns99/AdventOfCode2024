@@ -49,7 +49,7 @@ fn solve(grid: &Vec<Vec<char>>, start: Position, end: Position, cutoff: Option<i
                 None => { return Score(score); }
             }
         }
-        let nocheat = Position{ pos: pos.pos, skip_pos: None};
+        let nocheat = Position { pos: pos.pos, skip_pos: None };
         if seen.contains_key(&nocheat) || *seen.entry(pos).or_insert(score) < score {
             continue;
         }
@@ -59,7 +59,7 @@ fn solve(grid: &Vec<Vec<char>>, start: Position, end: Position, cutoff: Option<i
             if newpos == prev { return; }
             let skip_pos = if needs_skip { Some((prev, newpos)) } else { pos.skip_pos };
             let fullpos = Position { pos: newpos, skip_pos };
-            let nocheat = Position{ pos: newpos, skip_pos: None};
+            let nocheat = Position { pos: newpos, skip_pos: None };
             if (grid[newpos.1][newpos.0] != '#' || skip_pos.is_none()) && !seen.contains_key(&fullpos) && !seen.contains_key(&nocheat) {
                 heap.push((score - newscore, fullpos, pos.pos));
             }
